@@ -31,7 +31,6 @@ TEST(TDynamicVectorExpanded, ctor_too_large_throws_length_error)
 
 TEST(TDynamicVectorExpanded, ctor_from_negative_size_t_throws_length_error)
 {
-    // -5 -> огромное size_t; должно упасть в length_error, а не в out_of_range
     EXPECT_THROW(
         TDynamicVector<int> v(static_cast<size_t>(-5)),
         std::length_error
@@ -184,7 +183,6 @@ TEST(TDynamicVectorExpanded, at_out_of_range_throws_out_of_range)
     EXPECT_THROW(cv.at(3), std::out_of_range);
     EXPECT_THROW(v.at(4), std::out_of_range);
     EXPECT_THROW(cv.at(4), std::out_of_range);
-    // огромный индекс — тоже корректно должно бросать (это уже не UB, т.к. at проверяет)
     EXPECT_THROW(v.at(std::numeric_limits<size_t>::max()), std::out_of_range);
     EXPECT_THROW(cv.at(std::numeric_limits<size_t>::max()), std::out_of_range);
 }

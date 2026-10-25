@@ -31,9 +31,11 @@ protected:
     std_plus::VectorN<T> vec;
 public:
     TDynamicVector(size_t size = 1) : vec(check_vec_size(size)) {}
-    TDynamicVector(T* arr, size_t s) : vec(s)
+    TDynamicVector(T* arr, size_t s) : vec(check_vec_size(s))
     {
-        assert(arr != nullptr && "TDynamicVector ctor requires non-nullptr arg");
+        if (arr == nullptr)
+            throw std::invalid_argument("TDynamicVector ctor requires non-nullptr arg");
+
         for (size_t i = 0; i < s; i++)
             vec[i] = arr[i];
     }
@@ -200,6 +202,8 @@ public:
     // матрично-векторные операции
     TDynamicVector<T> operator*(const TDynamicVector<T>& v)
     {
+        if (v.size() != this->size())
+            throw std::length_error("TDynamicMatrix: incompatible sizes");
         const size_t n = this->size();
         TDynamicVector<T> result(n);
         for (size_t i = 0; i < n; i++)
@@ -210,6 +214,8 @@ public:
     // матрично-матричные операции
     TDynamicMatrix operator+(const TDynamicMatrix& m)
     {
+        if (m.size() != this->size())
+            throw std::length_error("TDynamicMatrix: incompatible sizes");
         const size_t n = this->size();
         TDynamicMatrix<T> result(n);
         for (size_t i = 0; i < n; i++)
@@ -218,6 +224,8 @@ public:
     }
     TDynamicMatrix operator-(const TDynamicMatrix& m)
     {
+        if (m.size() != this->size())
+            throw std::length_error("TDynamicMatrix: incompatible sizes");
         const size_t n = this->size();
         TDynamicMatrix<T> result(n);
         for (size_t i = 0; i < n; i++)
@@ -226,6 +234,8 @@ public:
     }
     TDynamicMatrix operator*(const TDynamicMatrix& m)
     {
+        if (m.size() != this->size())
+            throw std::length_error("TDynamicMatrix: incompatible sizes");
         const size_t n = this->size();
         TDynamicMatrix<T> result(n);
         for (size_t i = 0; i < n; i++)

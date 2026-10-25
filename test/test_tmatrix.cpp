@@ -17,7 +17,7 @@ namespace {
                 m[i][j] = value++;
     }
 
-} // namespace
+} 
 
 // ---------- Конструирование ----------
 
@@ -124,8 +124,6 @@ TEST(TDynamicMatrixExpanded, move_assignment_transfers_values)
 }
 
 // ---------- Доступ ----------
-// ВНИМАНИЕ: у TDynamicMatrix нет at(). Тестируем только корректные индексы.
-// Для проверки границ нужен либо at() (добавить using), либо проверяющий operator[].
 
 TEST(TDynamicMatrixExpanded, index_valid_get_and_set)
 {
