@@ -152,62 +152,104 @@ public:
     }
 };
 
-// Динамическая матрица - 
+// Динамическая матрица -
 // шаблонная матрица на динамической памяти
 template<typename T>
 class TDynamicMatrix : private TDynamicVector<TDynamicVector<T>>
 {
-    using TDynamicVector<TDynamicVector<T>>::pMem;
-    using TDynamicVector<TDynamicVector<T>>::sz;
-public:
-    TDynamicMatrix(size_t s = 1) : TDynamicVector<TDynamicVector<T>>(s)
+private:
+    static size_t checked_size(size_t s)
     {
-        for (size_t i = 0; i < sz; i++)
-            pMem[i] = TDynamicVector<T>(sz);
+        if (s == 0)
+            throw std::out_of_range("Matrix size should be greater than zero");
+        if (s > static_cast<size_t>(MAX_MATRIX_SIZE))
+            throw std::length_error("Matrix size is too large");
+        return s;
+    }
+public:
+    using TDynamicVector<TDynamicVector<T>>::size;
+    using TDynamicVector<TDynamicVector<T>>::operator[];
+    TDynamicMatrix(size_t s = 1)
+        : TDynamicVector<TDynamicVector<T>>(checked_size(s))
+    {
+        const size_t n = this->size();
+        for (size_t i = 0; i < n; i++)
+            (*this)[i] = TDynamicVector<T>(n);
     }
 
-    using TDynamicVector<TDynamicVector<T>>::operator[];
 
     // сравнение
     bool operator==(const TDynamicMatrix& m) const noexcept
     {
-        return false;
+        return TDynamicVector<TDynamicVector<T>>::operator==(m);
     }
-
+    bool operator!=(const TDynamicMatrix& m) const noexcept
+    {
+        return TDynamicVector<TDynamicVector<T>>::operator!=(m);
+    }
     // матрично-скалярные операции
     TDynamicMatrix<T> operator*(const T& val)
     {
-        return TDynamicMatrix<T>{};
+        const size_t n = this->size();
+        TDynamicMatrix<T> result(n);
+        for (size_t i = 0; i < n; i++)
+            result[i] = (*this)[i] * val; // operator*(double) у TDynamicVector<T>
+        return result;
     }
 
     // матрично-векторные операции
     TDynamicVector<T> operator*(const TDynamicVector<T>& v)
     {
-        return TDynamicVector<T>{};
+        const size_t n = this->size();
+        TDynamicVector<T> result(n);
+        for (size_t i = 0; i < n; i++)
+            result[i] = (*this)[i] * v; // скалярное произведение строки на вектор
+        return result;
     }
 
     // матрично-матричные операции
     TDynamicMatrix operator+(const TDynamicMatrix& m)
     {
-        // можно ли написать реализацию, используя operator+ вектора?
-        return TDynamicMatrix<T>{};
+        const size_t n = this->size();
+        TDynamicMatrix<T> result(n);
+        for (size_t i = 0; i < n; i++)
+            result[i] = (*this)[i] + m[i]; // operator+ векторов
+        return result;
     }
     TDynamicMatrix operator-(const TDynamicMatrix& m)
     {
-        return TDynamicMatrix<T>{};
+        const size_t n = this->size();
+        TDynamicMatrix<T> result(n);
+        for (size_t i = 0; i < n; i++)
+            result[i] = (*this)[i] - m[i];
+        return result;
     }
     TDynamicMatrix operator*(const TDynamicMatrix& m)
     {
-        return TDynamicMatrix<T>{};
+        const size_t n = this->size();
+        TDynamicMatrix<T> result(n);
+        for (size_t i = 0; i < n; i++)
+            for (size_t j = 0; j < n; j++)
+            {
+                T sum = T();
+                for (size_t k = 0; k < n; k++)
+                    sum += (*this)[i][k] * m[k][j];
+                result[i][j] = sum;
+            }
+        return result;
     }
 
     // ввод/вывод
     friend std::istream& operator>>(std::istream& istr, TDynamicMatrix& v)
     {
+        for (size_t i = 0; i < v.size(); i++)
+            istr >> v[i];
         return istr;
     }
     friend std::ostream& operator<<(std::ostream& ostr, const TDynamicMatrix& v)
     {
+        for (size_t i = 0; i < v.size(); i++)
+            ostr << v[i] << '\n';
         return ostr;
     }
 };

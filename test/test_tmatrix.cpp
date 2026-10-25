@@ -1,7 +1,7 @@
 #include "tmatrix.h"
 #include <gtest.h>
 #include <sstream>
-/*
+
 TEST(TDynamicMatrix, can_create_matrix_with_positive_length)
 {
     ASSERT_NO_THROW(TDynamicMatrix<int> m(5));
@@ -253,4 +253,3 @@ TEST(TDynamicMatrix, can_write_matrix)
 
     EXPECT_EQ(expected, sstr.str());
 }
-*/
