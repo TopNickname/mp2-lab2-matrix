@@ -1,298 +1,314 @@
-#include <sstream>
-#include "gtest.h"
+#include <gtest.h>
 #include "tmatrix.h"
 
-TEST(TDynamicVector, can_create_vector_with_positive_length)
+#include <sstream>
+#include <stdexcept>
+#include <limits>
+#include <cstddef>
+#include <utility>
+
+// ---------- Конструирование ----------
+
+TEST(TDynamicVectorExpanded, default_ctor_has_size_one_and_zero_value)
 {
-    ASSERT_NO_THROW(TDynamicVector<int> v(5));
-}
-
-TEST(TDynamicVector, cant_create_too_large_vector)
-{
-    ASSERT_ANY_THROW(TDynamicVector<int> v(MAX_VECTOR_SIZE + 1));
-}
-
-TEST(TDynamicVector, throws_when_create_vector_with_negative_length)
-{
-    ASSERT_ANY_THROW(TDynamicVector<int> v(-5));
-}
-
-TEST(TDynamicVector, can_create_copied_vector)
-{
-    TDynamicVector<int> v(10);
-
-    ASSERT_NO_THROW(TDynamicVector<int> v1(v));
-}
-
-TEST(TDynamicVector, can_move_vector_using_move_constructor)
-{
-    TDynamicVector<int> v(5);
-    for (int i = 0; i < 5; i++) v[i] = i;
-
-    TDynamicVector<int> v1(std::move(v));
-
-    ASSERT_EQ(5, v1.size());
-    for (int i = 0; i < 5; i++) EXPECT_EQ(i, v1[i]);
-}
-
-TEST(TDynamicVector, can_move_vector_using_move_operator)
-{
-    TDynamicVector<int> v(5);
-    for (int i = 0; i < 5; i++) v[i] = i;
-
-    TDynamicVector<int> v1;
-    v1 = std::move(v);
-
-    ASSERT_EQ(5, v1.size());
-    for (int i = 0; i < 5; i++) EXPECT_EQ(i, v1[i]);
-}
-
-TEST(TDynamicVector, copied_vector_is_equal_to_source_one)
-{
-    TDynamicVector<int> v(5);
-    for (int i = 0; i < 5; i++) v[i] = i;
-
-    TDynamicVector<int> v1(v);
-
-    EXPECT_EQ(v, v1);
-}
-
-TEST(TDynamicVector, copied_vector_has_its_own_memory)
-{
-    TDynamicVector<int> v(5);
-    for (int i = 0; i < 5; i++) v[i] = i;
-
-    TDynamicVector<int> v1(v);
-    v1[0] = 100;
-
-    EXPECT_NE(v, v1);
+    TDynamicVector<int> v;
+    EXPECT_EQ(static_cast<size_t>(1), v.size());
     EXPECT_EQ(0, v[0]);
-    EXPECT_EQ(100, v1[0]);
 }
 
-TEST(TDynamicVector, can_get_size)
+TEST(TDynamicVectorExpanded, ctor_zero_size_throws_out_of_range)
 {
-    TDynamicVector<int> v(4);
-
-    EXPECT_EQ(4, v.size());
+    EXPECT_THROW(TDynamicVector<int> v(0), std::out_of_range);
 }
 
-TEST(TDynamicVector, can_set_and_get_element)
+TEST(TDynamicVectorExpanded, ctor_too_large_throws_length_error)
 {
-  TDynamicVector<int> v(4);
-  v[0] = 4;
-
-  EXPECT_EQ(4, v[0]);
+    EXPECT_THROW(
+        TDynamicVector<int> v(static_cast<size_t>(MAX_VECTOR_SIZE) + 1),
+        std::length_error
+    );
 }
 
-TEST(TDynamicVector, throws_when_set_element_with_negative_index)
+TEST(TDynamicVectorExpanded, ctor_from_negative_size_t_throws_length_error)
 {
-    TDynamicVector<int> v(5);
-
-    ASSERT_ANY_THROW(v[-1] = 4);
+    // -5 -> огромное size_t; должно упасть в length_error, а не в out_of_range
+    EXPECT_THROW(
+        TDynamicVector<int> v(static_cast<size_t>(-5)),
+        std::length_error
+    );
 }
 
-TEST(TDynamicVector, throws_when_set_element_with_too_large_index)
+TEST(TDynamicVectorExpanded, arr_ctor_copies_values_and_does_not_alias)
 {
-    TDynamicVector<int> v(5);
+    int arr[3] = { 1, 2, 3 };
+    TDynamicVector<int> v(arr, 3);
 
-    ASSERT_ANY_THROW(v[5] = 4);
-    ASSERT_ANY_THROW(v[100] = 4);
+    EXPECT_EQ(static_cast<size_t>(3), v.size());
+    EXPECT_EQ(1, v[0]);
+    EXPECT_EQ(2, v[1]);
+    EXPECT_EQ(3, v[2]);
+
+    arr[0] = 100;
+    EXPECT_EQ(1, v[0]);
 }
 
-TEST(TDynamicVector, can_assign_vector_to_itself)
+TEST(TDynamicVectorExpanded, arr_ctor_zero_size_throws_out_of_range)
 {
-    TDynamicVector<int> v(5);
-    for (int i = 0; i < 5; i++) v[i] = i;
-
-    ASSERT_NO_THROW(v = v);
-
-    ASSERT_EQ(5, v.size());
-    for (int i = 0; i < 5; i++) EXPECT_EQ(i, v[i]);
+    int arr[1] = { 7 };
+    EXPECT_THROW(TDynamicVector<int> v(arr, 0), std::out_of_range);
 }
 
-TEST(TDynamicVector, can_assign_vectors_of_equal_size)
+TEST(TDynamicVectorExpanded, arr_ctor_too_large_throws_length_error)
 {
-    TDynamicVector<int> v1(5), v2(5);
-    for (int i = 0; i < 5; i++) {
-        v1[i] = i;
-        v2[i] = i + 10;
-    }
-
-    v1 = v2;
-
-    ASSERT_EQ(5, v1.size());
-    EXPECT_EQ(v2, v1);
+    int arr[1] = { 7 };
+    EXPECT_THROW(
+        TDynamicVector<int> v(arr, std::numeric_limits<size_t>::max()),
+        std::length_error
+    );
 }
 
-TEST(TDynamicVector, assign_operator_change_vector_size)
-{
-    TDynamicVector<int> v1(5), v2(3);
+// ---------- Копирование / перемещение / присваивание ----------
 
-    v1 = v2;
-
-    EXPECT_EQ(3, v1.size());
-}
-
-TEST(TDynamicVector, can_assign_vectors_of_different_size)
-{
-    TDynamicVector<int> v1(5), v2(3);
-    for (int i = 0; i < 3; i++) v2[i] = i + 10;
-
-    v1 = v2;
-
-    ASSERT_EQ(3, v1.size());
-    for (int i = 0; i < 3; i++) EXPECT_EQ(i + 10, v1[i]);
-}
-
-TEST(TDynamicVector, compare_equal_vectors_return_true)
-{
-    TDynamicVector<int> v1(5), v2(5);
-    for (int i = 0; i < 5; i++) {
-        v1[i] = i;
-        v2[i] = i;
-    }
-
-    EXPECT_TRUE(v1 == v2);
-    EXPECT_FALSE(v1 != v2);
-}
-
-TEST(TDynamicVector, compare_vector_with_itself_return_true)
-{
-    TDynamicVector<int> v(5);
-    for (int i = 0; i < 5; i++) v[i] = i;
-
-    EXPECT_TRUE(v == v);
-}
-
-TEST(TDynamicVector, vectors_with_different_size_are_not_equal)
-{
-    TDynamicVector<int> v1(5), v2(3);
-
-    EXPECT_FALSE(v1 == v2);
-    EXPECT_TRUE(v1 != v2);
-}
-
-TEST(TDynamicVector, can_add_scalar_to_vector)
+TEST(TDynamicVectorExpanded, copy_ctor_equal_and_independent)
 {
     TDynamicVector<int> v(3);
     v[0] = 1; v[1] = 2; v[2] = 3;
 
-    TDynamicVector<int> res = v + 10;
+    TDynamicVector<int> c(v);
 
-    ASSERT_EQ(3, res.size());
-    EXPECT_EQ(11, res[0]);
-    EXPECT_EQ(12, res[1]);
-    EXPECT_EQ(13, res[2]);
+    EXPECT_EQ(v, c);
+    c[0] = 100;
+    EXPECT_NE(v, c);
+    EXPECT_EQ(1, v[0]);
 }
 
-TEST(TDynamicVector, can_subtract_scalar_from_vector)
-{
-    TDynamicVector<int> v(3);
-    v[0] = 11; v[1] = 12; v[2] = 13;
-
-    TDynamicVector<int> res = v - 10;
-
-    ASSERT_EQ(3, res.size());
-    EXPECT_EQ(1, res[0]);
-    EXPECT_EQ(2, res[1]);
-    EXPECT_EQ(3, res[2]);
-}
-
-TEST(TDynamicVector, can_multiply_scalar_by_vector)
+TEST(TDynamicVectorExpanded, move_ctor_transfers_values)
 {
     TDynamicVector<int> v(3);
     v[0] = 1; v[1] = 2; v[2] = 3;
 
-    TDynamicVector<int> res = v * 2;
+    TDynamicVector<int> c(std::move(v));
 
-    ASSERT_EQ(3, res.size());
-    EXPECT_EQ(2, res[0]);
-    EXPECT_EQ(4, res[1]);
-    EXPECT_EQ(6, res[2]);
+    EXPECT_EQ(static_cast<size_t>(3), c.size());
+    EXPECT_EQ(1, c[0]);
+    EXPECT_EQ(2, c[1]);
+    EXPECT_EQ(3, c[2]);
 }
 
-TEST(TDynamicVector, can_add_vectors_with_equal_size)
+TEST(TDynamicVectorExpanded, copy_assignment_self_is_safe)
 {
-    TDynamicVector<int> v1(3), v2(3);
-    v1[0] = 1; v1[1] = 2; v1[2] = 3;
-    v2[0] = 4; v2[1] = 5; v2[2] = 6;
+    TDynamicVector<int> v(3);
+    v[0] = 1; v[1] = 2; v[2] = 3;
 
-    TDynamicVector<int> res = v1 + v2;
+    v = v;
 
-    ASSERT_EQ(3, res.size());
-    EXPECT_EQ(5, res[0]);
-    EXPECT_EQ(7, res[1]);
-    EXPECT_EQ(9, res[2]);
+    EXPECT_EQ(static_cast<size_t>(3), v.size());
+    EXPECT_EQ(1, v[0]);
+    EXPECT_EQ(2, v[1]);
+    EXPECT_EQ(3, v[2]);
 }
 
-TEST(TDynamicVector, cant_add_vectors_with_not_equal_size)
+TEST(TDynamicVectorExpanded, copy_assignment_different_size_changes_size_and_values)
 {
-    TDynamicVector<int> v1(3), v2(5);
+    TDynamicVector<int> a(5), b(3);
+    b[0] = 10; b[1] = 20; b[2] = 30;
 
-    ASSERT_ANY_THROW(v1 + v2);
+    a = b;
+
+    EXPECT_EQ(static_cast<size_t>(3), a.size());
+    EXPECT_EQ(10, a[0]);
+    EXPECT_EQ(20, a[1]);
+    EXPECT_EQ(30, a[2]);
 }
 
-TEST(TDynamicVector, can_subtract_vectors_with_equal_size)
+TEST(TDynamicVectorExpanded, move_assignment_transfers_values)
 {
-    TDynamicVector<int> v1(3), v2(3);
-    v1[0] = 5; v1[1] = 7; v1[2] = 9;
-    v2[0] = 4; v2[1] = 5; v2[2] = 6;
+    TDynamicVector<int> a(3);
+    a[0] = 1; a[1] = 2; a[2] = 3;
 
-    TDynamicVector<int> res = v1 - v2;
+    TDynamicVector<int> b(1);
+    b = std::move(a);
 
-    ASSERT_EQ(3, res.size());
-    EXPECT_EQ(1, res[0]);
-    EXPECT_EQ(2, res[1]);
-    EXPECT_EQ(3, res[2]);
+    EXPECT_EQ(static_cast<size_t>(3), b.size());
+    EXPECT_EQ(1, b[0]);
+    EXPECT_EQ(2, b[1]);
+    EXPECT_EQ(3, b[2]);
 }
 
-TEST(TDynamicVector, cant_subtract_vectors_with_not_equal_size)
-{
-    TDynamicVector<int> v1(3), v2(5);
+// ---------- Доступ ----------
 
-    ASSERT_ANY_THROW(v1 - v2);
+// Проверяем только корректные индексы; operator[] за границей — UB, не тестируем.
+TEST(TDynamicVectorExpanded, index_valid_get_and_set)
+{
+    TDynamicVector<int> v(3);
+    v[0] = 1;
+    v[1] = 2;
+    v[2] = 3;
+
+    const TDynamicVector<int>& cv = v;
+    EXPECT_EQ(1, cv[0]);
+    EXPECT_EQ(2, cv[1]);
+    EXPECT_EQ(3, cv[2]);
 }
 
-TEST(TDynamicVector, can_multiply_vectors_with_equal_size)
+TEST(TDynamicVectorExpanded, index_first_and_last_are_valid)
 {
-    TDynamicVector<int> v1(3), v2(3);
-    v1[0] = 1; v1[1] = 2; v1[2] = 3;
-    v2[0] = 4; v2[1] = 5; v2[2] = 6;
+    TDynamicVector<int> v(3);
+    v[0] = 10;
+    v[2] = 30;
 
-    int res = v1 * v2;
-
-    EXPECT_EQ(32, res);
+    const TDynamicVector<int>& cv = v;
+    EXPECT_EQ(10, cv[0]);
+    EXPECT_EQ(30, cv[2]);
 }
 
-TEST(TDynamicVector, cant_multiply_vectors_with_not_equal_size)
+TEST(TDynamicVectorExpanded, at_valid_get_and_set)
 {
-    TDynamicVector<int> v1(3), v2(5);
+    TDynamicVector<int> v(3);
+    v.at(0) = 1;
+    v.at(1) = 2;
+    v.at(2) = 3;
 
-    ASSERT_ANY_THROW(v1 * v2);
+    const TDynamicVector<int>& cv = v;
+    EXPECT_EQ(1, cv.at(0));
+    EXPECT_EQ(2, cv.at(1));
+    EXPECT_EQ(3, cv.at(2));
 }
 
-TEST(TDynamicVector, can_read_vector)
+TEST(TDynamicVectorExpanded, at_out_of_range_throws_out_of_range)
 {
-    TDynamicVector<int> v(5);
-    TDynamicVector<int> expected(5);
-    for (int i = 0; i < 5; i++) expected[i] = i+1;
+    TDynamicVector<int> v(3);
+    const TDynamicVector<int>& cv = v;
 
-    std::stringstream sstr;
-    sstr << "1 2 3 4 5\n";
-    sstr >> v;
-
-    EXPECT_EQ(expected, v);
+    EXPECT_THROW(v.at(3), std::out_of_range);
+    EXPECT_THROW(cv.at(3), std::out_of_range);
+    EXPECT_THROW(v.at(4), std::out_of_range);
+    EXPECT_THROW(cv.at(4), std::out_of_range);
+    // огромный индекс — тоже корректно должно бросать (это уже не UB, т.к. at проверяет)
+    EXPECT_THROW(v.at(std::numeric_limits<size_t>::max()), std::out_of_range);
+    EXPECT_THROW(cv.at(std::numeric_limits<size_t>::max()), std::out_of_range);
 }
 
-TEST(TDynamicVector, can_write_vector)
+// ---------- Сравнение ----------
+
+TEST(TDynamicVectorExpanded, equality_and_inequality)
 {
-    TDynamicVector<int> v(5);
-    for (int i = 0; i < 5; i++) v[i] = i+1;
-    std::string expected = "1 2 3 4 5 ";
+    TDynamicVector<int> a(3), b(3), c(4);
+    a[0] = 1; a[1] = 2; a[2] = 3;
+    b[0] = 1; b[1] = 2; b[2] = 3;
 
-    std::stringstream sstr;
-    sstr << v;
+    EXPECT_TRUE(a == b);
+    EXPECT_FALSE(a != b);
 
-    EXPECT_EQ(expected, sstr.str());
+    b[2] = 4;
+    EXPECT_FALSE(a == b);
+    EXPECT_TRUE(a != b);
+
+    EXPECT_FALSE(a == c);
+    EXPECT_TRUE(a != c);
+
+    EXPECT_TRUE(a == a);
+}
+
+// ---------- Скалярные операции ----------
+
+TEST(TDynamicVectorExpanded, scalar_ops_return_new_vectors_and_do_not_modify_original)
+{
+    TDynamicVector<int> v(3);
+    v[0] = 1; v[1] = 2; v[2] = 3;
+
+    TDynamicVector<int> added = v + 10;
+    TDynamicVector<int> subbed = v - 10;
+    TDynamicVector<int> muled = v * 2;
+
+    EXPECT_EQ(11, added[0]);
+    EXPECT_EQ(12, added[1]);
+    EXPECT_EQ(13, added[2]);
+
+    EXPECT_EQ(-9, subbed[0]);
+    EXPECT_EQ(-8, subbed[1]);
+    EXPECT_EQ(-7, subbed[2]);
+
+    EXPECT_EQ(2, muled[0]);
+    EXPECT_EQ(4, muled[1]);
+    EXPECT_EQ(6, muled[2]);
+
+    EXPECT_EQ(1, v[0]);
+    EXPECT_EQ(2, v[1]);
+    EXPECT_EQ(3, v[2]);
+}
+
+// ---------- Векторные операции ----------
+
+TEST(TDynamicVectorExpanded, vector_add_sub_dot_equal_size)
+{
+    TDynamicVector<int> a(3), b(3);
+    a[0] = 1; a[1] = 2; a[2] = 3;
+    b[0] = 4; b[1] = 5; b[2] = 6;
+
+    TDynamicVector<int> sum = a + b;
+    TDynamicVector<int> dif = a - b;
+    int dot = a * b;
+
+    EXPECT_EQ(5, sum[0]);
+    EXPECT_EQ(7, sum[1]);
+    EXPECT_EQ(9, sum[2]);
+
+    EXPECT_EQ(-3, dif[0]);
+    EXPECT_EQ(-3, dif[1]);
+    EXPECT_EQ(-3, dif[2]);
+
+    EXPECT_EQ(32, dot);
+
+    EXPECT_EQ(1, a[0]);
+    EXPECT_EQ(2, a[1]);
+    EXPECT_EQ(3, a[2]);
+}
+
+TEST(TDynamicVectorExpanded, vector_ops_mismatch_throw_length_error)
+{
+    TDynamicVector<int> a(2), b(3);
+
+    EXPECT_THROW(a + b, std::length_error);
+    EXPECT_THROW(a - b, std::length_error);
+    EXPECT_THROW(a * b, std::length_error);
+}
+
+// ---------- swap ----------
+
+TEST(TDynamicVectorExpanded, swap_swaps_contents_and_sizes)
+{
+    TDynamicVector<int> a(2), b(3);
+    a[0] = 1; a[1] = 2;
+    b[0] = 10; b[1] = 20; b[2] = 30;
+
+    swap(a, b);
+
+    EXPECT_EQ(static_cast<size_t>(3), a.size());
+    EXPECT_EQ(static_cast<size_t>(2), b.size());
+
+    EXPECT_EQ(10, a[0]);
+    EXPECT_EQ(20, a[1]);
+    EXPECT_EQ(30, a[2]);
+
+    EXPECT_EQ(1, b[0]);
+    EXPECT_EQ(2, b[1]);
+}
+
+// ---------- Ввод/вывод ----------
+
+TEST(TDynamicVectorExpanded, input_and_output)
+{
+    TDynamicVector<int> v(3);
+    std::stringstream in("1 2 3");
+    in >> v;
+
+    EXPECT_EQ(1, v[0]);
+    EXPECT_EQ(2, v[1]);
+    EXPECT_EQ(3, v[2]);
+
+    std::stringstream out;
+    out << v;
+
+    EXPECT_EQ("1 2 3 ", out.str());
 }

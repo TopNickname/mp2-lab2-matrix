@@ -62,11 +62,11 @@ public:
     // индексация
     T& operator[](size_t ind)
     {
-        return vec[ind];
+        return vec.data()[ind];
     }
     const T& operator[](size_t ind) const
     {
-        return vec[ind];
+        return vec.data()[ind];
     }
     // индексация с контролем
     T& at(size_t ind)
@@ -97,7 +97,7 @@ public:
             result[i] = vec[i] + val;
         return result;
     }
-    TDynamicVector operator-(double val)
+    TDynamicVector operator-(T val)
     {
         const size_t n = size();
         TDynamicVector result(n);
@@ -105,7 +105,7 @@ public:
             result[i] = vec[i] - val;
         return result;
     }
-    TDynamicVector operator*(double val)
+    TDynamicVector operator*(T val)
     {
         const size_t n = size();
         TDynamicVector result(n);
@@ -193,7 +193,7 @@ public:
         const size_t n = this->size();
         TDynamicMatrix<T> result(n);
         for (size_t i = 0; i < n; i++)
-            result[i] = (*this)[i] * val; // operator*(double) у TDynamicVector<T>
+            result[i] = (*this)[i] * val; 
         return result;
     }
 

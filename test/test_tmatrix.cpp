@@ -1,255 +1,302 @@
-#include "tmatrix.h"
 #include <gtest.h>
+#include "tmatrix.h"
+
 #include <sstream>
+#include <stdexcept>
+#include <limits>
+#include <cstddef>
+#include <utility>
 
-TEST(TDynamicMatrix, can_create_matrix_with_positive_length)
+namespace {
+
+    void fill_matrix(TDynamicMatrix<int>& m, int start = 1)
+    {
+        int value = start;
+        for (size_t i = 0; i < m.size(); ++i)
+            for (size_t j = 0; j < m.size(); ++j)
+                m[i][j] = value++;
+    }
+
+} // namespace
+
+// ---------- Конструирование ----------
+
+TEST(TDynamicMatrixExpanded, default_ctor_has_size_one_and_zero_value)
 {
-    ASSERT_NO_THROW(TDynamicMatrix<int> m(5));
-}
-
-TEST(TDynamicMatrix, cant_create_too_large_matrix)
-{
-    ASSERT_ANY_THROW(TDynamicMatrix<int> m(MAX_MATRIX_SIZE + 1));
-}
-
-TEST(TDynamicMatrix, throws_when_create_matrix_with_negative_length)
-{
-    ASSERT_ANY_THROW(TDynamicMatrix<int> m(-5));
-}
-
-TEST(TDynamicMatrix, can_create_copied_matrix)
-{
-    TDynamicMatrix<int> m(5);
-
-    ASSERT_NO_THROW(TDynamicMatrix<int> m1(m));
-}
-
-TEST(TDynamicMatrix, copied_matrix_is_equal_to_source_one)
-{
-    TDynamicMatrix<int> m(3);
-    for (int i = 0; i < 3; i++)
-        for (int j = 0; j < 3; j++)
-            m[i][j] = i * 3 + j;
-
-    TDynamicMatrix<int> m1(m);
-
-    EXPECT_EQ(m, m1);
-}
-
-TEST(TDynamicMatrix, copied_matrix_has_its_own_memory)
-{
-    TDynamicMatrix<int> m(3);
-    for (int i = 0; i < 3; i++)
-        for (int j = 0; j < 3; j++)
-            m[i][j] = i * 3 + j;
-
-    TDynamicMatrix<int> m1(m);
-    m1[0][0] = 100;
-
-    EXPECT_NE(m, m1);
+    TDynamicMatrix<int> m;
+    EXPECT_EQ(static_cast<size_t>(1), m.size());
     EXPECT_EQ(0, m[0][0]);
-    EXPECT_EQ(100, m1[0][0]);
 }
 
-TEST(TDynamicMatrix, can_get_size)
+TEST(TDynamicMatrixExpanded, ctor_zero_size_throws_out_of_range)
 {
-    TDynamicMatrix<int> m(4);
-
-    EXPECT_EQ(4, m.size());
+    EXPECT_THROW(TDynamicMatrix<int> m(0), std::out_of_range);
 }
 
-TEST(TDynamicMatrix, can_set_and_get_element)
+TEST(TDynamicMatrixExpanded, ctor_too_large_throws_length_error)
 {
-    TDynamicMatrix<int> m(3);
+    EXPECT_THROW(
+        TDynamicMatrix<int> m(static_cast<size_t>(MAX_MATRIX_SIZE) + 1),
+        std::length_error
+    );
+}
+
+TEST(TDynamicMatrixExpanded, ctor_from_negative_size_t_throws_length_error)
+{
+    EXPECT_THROW(
+        TDynamicMatrix<int> m(static_cast<size_t>(-5)),
+        std::length_error
+    );
+}
+
+// ---------- Копирование / перемещение / присваивание ----------
+
+TEST(TDynamicMatrixExpanded, copy_ctor_equal_and_independent)
+{
+    TDynamicMatrix<int> m(2);
+    fill_matrix(m, 1);
+
+    TDynamicMatrix<int> c(m);
+
+    EXPECT_EQ(m, c);
+
+    c[0][0] = 100;
+    EXPECT_NE(m, c);
+    EXPECT_EQ(1, m[0][0]);
+    EXPECT_EQ(100, c[0][0]);
+}
+
+TEST(TDynamicMatrixExpanded, move_ctor_transfers_values)
+{
+    TDynamicMatrix<int> m(2);
+    fill_matrix(m, 1);
+
+    TDynamicMatrix<int> c(std::move(m));
+
+    EXPECT_EQ(static_cast<size_t>(2), c.size());
+    EXPECT_EQ(1, c[0][0]);
+    EXPECT_EQ(2, c[0][1]);
+    EXPECT_EQ(3, c[1][0]);
+    EXPECT_EQ(4, c[1][1]);
+}
+
+TEST(TDynamicMatrixExpanded, copy_assignment_self_is_safe)
+{
+    TDynamicMatrix<int> m(2);
+    fill_matrix(m, 1);
+
+    m = m;
+
+    EXPECT_EQ(static_cast<size_t>(2), m.size());
+    EXPECT_EQ(1, m[0][0]);
+    EXPECT_EQ(2, m[0][1]);
+    EXPECT_EQ(3, m[1][0]);
+    EXPECT_EQ(4, m[1][1]);
+}
+
+TEST(TDynamicMatrixExpanded, copy_assignment_different_size_changes_size_and_values)
+{
+    TDynamicMatrix<int> a(3), b(2);
+    fill_matrix(b, 10);
+
+    a = b;
+
+    EXPECT_EQ(static_cast<size_t>(2), a.size());
+    EXPECT_EQ(10, a[0][0]);
+    EXPECT_EQ(11, a[0][1]);
+    EXPECT_EQ(12, a[1][0]);
+    EXPECT_EQ(13, a[1][1]);
+}
+
+TEST(TDynamicMatrixExpanded, move_assignment_transfers_values)
+{
+    TDynamicMatrix<int> a(2);
+    fill_matrix(a, 1);
+
+    TDynamicMatrix<int> b(1);
+    b = std::move(a);
+
+    EXPECT_EQ(static_cast<size_t>(2), b.size());
+    EXPECT_EQ(1, b[0][0]);
+    EXPECT_EQ(2, b[0][1]);
+    EXPECT_EQ(3, b[1][0]);
+    EXPECT_EQ(4, b[1][1]);
+}
+
+// ---------- Доступ ----------
+// ВНИМАНИЕ: у TDynamicMatrix нет at(). Тестируем только корректные индексы.
+// Для проверки границ нужен либо at() (добавить using), либо проверяющий operator[].
+
+TEST(TDynamicMatrixExpanded, index_valid_get_and_set)
+{
+    TDynamicMatrix<int> m(2);
 
     m[0][0] = 1;
-    m[1][2] = 5;
-    m[2][1] = 9;
+    m[0][1] = 2;
+    m[1][0] = 3;
+    m[1][1] = 4;
 
     EXPECT_EQ(1, m[0][0]);
-    EXPECT_EQ(5, m[1][2]);
-    EXPECT_EQ(9, m[2][1]);
+    EXPECT_EQ(2, m[0][1]);
+    EXPECT_EQ(3, m[1][0]);
+    EXPECT_EQ(4, m[1][1]);
 }
 
-TEST(TDynamicMatrix, throws_when_set_element_with_negative_index)
-{
-    TDynamicMatrix<int> m(3);
+// ---------- Сравнение ----------
 
-    ASSERT_ANY_THROW(m[-1][0] = 4);
-    ASSERT_ANY_THROW(m[0][-1] = 4);
+TEST(TDynamicMatrixExpanded, equality_and_inequality)
+{
+    TDynamicMatrix<int> a(2), b(2), c(3);
+    fill_matrix(a, 1);
+    fill_matrix(b, 1);
+
+    EXPECT_TRUE(a == b);
+    EXPECT_FALSE(a != b);
+
+    b[0][0] = 100;
+    EXPECT_FALSE(a == b);
+    EXPECT_TRUE(a != b);
+
+    EXPECT_FALSE(a == c);
+    EXPECT_TRUE(a != c);
+
+    EXPECT_TRUE(a == a);
 }
 
-TEST(TDynamicMatrix, throws_when_set_element_with_too_large_index)
-{
-    TDynamicMatrix<int> m(3);
+// ---------- Матрично-скалярные ----------
 
-    ASSERT_ANY_THROW(m[3][0] = 4);
-    ASSERT_ANY_THROW(m[0][3] = 4);
-    ASSERT_ANY_THROW(m[100][0] = 4);
+TEST(TDynamicMatrixExpanded, scalar_multiply_returns_new_matrix_and_does_not_modify_original)
+{
+    TDynamicMatrix<int> m(2);
+    fill_matrix(m, 1);
+
+    TDynamicMatrix<int> r = m * 2;
+
+    EXPECT_EQ(2, r[0][0]);
+    EXPECT_EQ(4, r[0][1]);
+    EXPECT_EQ(6, r[1][0]);
+    EXPECT_EQ(8, r[1][1]);
+
+    EXPECT_EQ(1, m[0][0]);
+    EXPECT_EQ(2, m[0][1]);
+    EXPECT_EQ(3, m[1][0]);
+    EXPECT_EQ(4, m[1][1]);
 }
 
-TEST(TDynamicMatrix, can_assign_matrix_to_itself)
+// ---------- Матрично-векторные ----------
+
+TEST(TDynamicMatrixExpanded, matrix_vector_multiply_equal_size)
 {
-    TDynamicMatrix<int> m(3);
-    for (int i = 0; i < 3; i++)
-        for (int j = 0; j < 3; j++)
-            m[i][j] = i * 3 + j;
+    TDynamicMatrix<int> m(2);
+    fill_matrix(m, 1); // [[1,2],[3,4]]
 
-    ASSERT_NO_THROW(m = m);
+    TDynamicVector<int> v(2);
+    v[0] = 5;
+    v[1] = 6;
 
-    ASSERT_EQ(3, m.size());
-    for (int i = 0; i < 3; i++)
-        for (int j = 0; j < 3; j++)
-            EXPECT_EQ(i * 3 + j, m[i][j]);
+    TDynamicVector<int> r = m * v;
+
+    EXPECT_EQ(static_cast<size_t>(2), r.size());
+    EXPECT_EQ(17, r[0]); // 1*5 + 2*6
+    EXPECT_EQ(39, r[1]); // 3*5 + 4*6
 }
 
-TEST(TDynamicMatrix, can_assign_matrices_of_equal_size)
+TEST(TDynamicMatrixExpanded, matrix_vector_multiply_mismatch_throws_length_error)
 {
-    TDynamicMatrix<int> m1(3), m2(3);
-    for (int i = 0; i < 3; i++) {
-        for (int j = 0; j < 3; j++) {
-            m1[i][j] = i * 3 + j;
-            m2[i][j] = i * 3 + j + 10;
-        }
-    }
+    TDynamicMatrix<int> m(2);
 
-    m1 = m2;
+    TDynamicVector<int> too_large(3);
+    TDynamicVector<int> too_small(1);
 
-    ASSERT_EQ(3, m1.size());
-    EXPECT_EQ(m2, m1);
+    EXPECT_THROW(m * too_large, std::length_error);
+    EXPECT_THROW(m * too_small, std::length_error);
 }
 
-TEST(TDynamicMatrix, assign_operator_change_matrix_size)
+// ---------- Матрично-матричные ----------
+
+TEST(TDynamicMatrixExpanded, matrix_add_sub_equal_size)
 {
-    TDynamicMatrix<int> m1(5), m2(3);
+    TDynamicMatrix<int> a(2), b(2);
+    fill_matrix(a, 1);  // [[1,2],[3,4]]
+    fill_matrix(b, 10); // [[10,11],[12,13]]
 
-    m1 = m2;
+    TDynamicMatrix<int> sum = a + b;
+    TDynamicMatrix<int> dif = a - b;
 
-    EXPECT_EQ(3, m1.size());
+    EXPECT_EQ(11, sum[0][0]);
+    EXPECT_EQ(13, sum[0][1]);
+    EXPECT_EQ(15, sum[1][0]);
+    EXPECT_EQ(17, sum[1][1]);
+
+    EXPECT_EQ(-9, dif[0][0]);
+    EXPECT_EQ(-9, dif[0][1]);
+    EXPECT_EQ(-9, dif[1][0]);
+    EXPECT_EQ(-9, dif[1][1]);
+
+    EXPECT_EQ(1, a[0][0]);
+    EXPECT_EQ(2, a[0][1]);
+    EXPECT_EQ(3, a[1][0]);
+    EXPECT_EQ(4, a[1][1]);
 }
 
-TEST(TDynamicMatrix, can_assign_matrices_of_different_size)
+TEST(TDynamicMatrixExpanded, matrix_add_sub_mismatch_throws_length_error_in_both_directions)
 {
-    TDynamicMatrix<int> m1(5), m2(3);
-    for (int i = 0; i < 3; i++)
-        for (int j = 0; j < 3; j++)
-            m2[i][j] = i * 3 + j + 10;
+    TDynamicMatrix<int> small(2), large(3);
 
-    m1 = m2;
+    EXPECT_THROW(small + large, std::length_error);
+    EXPECT_THROW(large + small, std::length_error);
 
-    ASSERT_EQ(3, m1.size());
-    for (int i = 0; i < 3; i++)
-        for (int j = 0; j < 3; j++)
-            EXPECT_EQ(i * 3 + j + 10, m1[i][j]);
+    EXPECT_THROW(small - large, std::length_error);
+    EXPECT_THROW(large - small, std::length_error);
 }
 
-TEST(TDynamicMatrix, compare_equal_matrices_return_true)
+TEST(TDynamicMatrixExpanded, matrix_multiply_equal_size)
 {
-    TDynamicMatrix<int> m1(3), m2(3);
-    for (int i = 0; i < 3; i++) {
-        for (int j = 0; j < 3; j++) {
-            m1[i][j] = i * 3 + j;
-            m2[i][j] = i * 3 + j;
-        }
-    }
+    TDynamicMatrix<int> a(2), b(2);
+    fill_matrix(a, 1); // [[1,2],[3,4]]
+    fill_matrix(b, 5); // [[5,6],[7,8]]
 
-    EXPECT_TRUE(m1 == m2);
-    EXPECT_FALSE(m1 != m2);
+    TDynamicMatrix<int> p = a * b;
+
+    EXPECT_EQ(static_cast<size_t>(2), p.size());
+
+    // [[1*5+2*7, 1*6+2*8], [3*5+4*7, 3*6+4*8]]
+    EXPECT_EQ(19, p[0][0]);
+    EXPECT_EQ(22, p[0][1]);
+    EXPECT_EQ(43, p[1][0]);
+    EXPECT_EQ(50, p[1][1]);
+
+    EXPECT_EQ(1, a[0][0]);
+    EXPECT_EQ(2, a[0][1]);
+    EXPECT_EQ(3, a[1][0]);
+    EXPECT_EQ(4, a[1][1]);
 }
 
-TEST(TDynamicMatrix, compare_matrix_with_itself_return_true)
+TEST(TDynamicMatrixExpanded, matrix_multiply_mismatch_throws_length_error_in_both_directions)
 {
-    TDynamicMatrix<int> m(3);
-    for (int i = 0; i < 3; i++)
-        for (int j = 0; j < 3; j++)
-            m[i][j] = i * 3 + j;
+    TDynamicMatrix<int> small(2), large(3);
 
-    EXPECT_TRUE(m == m);
+    EXPECT_THROW(small * large, std::length_error);
+    EXPECT_THROW(large * small, std::length_error);
 }
 
-TEST(TDynamicMatrix, matrices_with_different_size_are_not_equal)
+// ---------- Ввод/вывод ----------
+
+TEST(TDynamicMatrixExpanded, input_and_output)
 {
-    TDynamicMatrix<int> m1(5), m2(3);
+    TDynamicMatrix<int> m(2);
+    fill_matrix(m, 1); // [[1,2],[3,4]]
 
-    EXPECT_FALSE(m1 == m2);
-    EXPECT_TRUE(m1 != m2);
-}
+    std::stringstream out;
+    out << m;
+    EXPECT_EQ("1 2 \n3 4 \n", out.str());
 
-TEST(TDynamicMatrix, can_add_matrices_with_equal_size)
-{
-    TDynamicMatrix<int> m1(3), m2(3);
-    for (int i = 0; i < 3; i++) {
-        for (int j = 0; j < 3; j++) {
-            m1[i][j] = i * 3 + j;
-            m2[i][j] = 10 + i * 3 + j;
-        }
-    }
+    TDynamicMatrix<int> r(2);
+    std::stringstream in("5 6 7 8");
+    in >> r;
 
-    TDynamicMatrix<int> res = m1 + m2;
-
-    ASSERT_EQ(3, res.size());
-    for (int i = 0; i < 3; i++)
-        for (int j = 0; j < 3; j++)
-            EXPECT_EQ(10 + 2 * (i * 3 + j), res[i][j]);
-}
-
-TEST(TDynamicMatrix, cant_add_matrices_with_not_equal_size)
-{
-    TDynamicMatrix<int> m1(3), m2(5);
-
-    ASSERT_ANY_THROW(m1 + m2);
-}
-
-TEST(TDynamicMatrix, can_subtract_matrices_with_equal_size)
-{
-    TDynamicMatrix<int> m1(3), m2(3);
-    for (int i = 0; i < 3; i++) {
-        for (int j = 0; j < 3; j++) {
-            m1[i][j] = 10 + i * 3 + j;
-            m2[i][j] = i * 3 + j;
-        }
-    }
-
-    TDynamicMatrix<int> res = m1 - m2;
-
-    ASSERT_EQ(3, res.size());
-    for (int i = 0; i < 3; i++)
-        for (int j = 0; j < 3; j++)
-            EXPECT_EQ(10, res[i][j]);
-}
-
-TEST(TDynamicMatrix, cant_subtract_matrixes_with_not_equal_size)
-{
-    TDynamicMatrix<int> m1(3), m2(5);
-
-    ASSERT_ANY_THROW(m1 - m2);
-}
-
-TEST(TDynamicMatrix, can_read_matrix)
-{
-    TDynamicMatrix<int> m(3);
-    TDynamicMatrix<int> expected(3);
-    for (int i = 0; i < 3; i++)
-        for (int j = 0; j < 3; j++)
-            expected[i][j] = i * 3 + j + 1;   // [1..9]
-
-    std::stringstream sstr;
-    sstr << "1 2 3 4 5 6 7 8 9\n";
-    sstr >> m;
-
-    EXPECT_EQ(expected, m);
-}
-
-TEST(TDynamicMatrix, can_write_matrix)
-{
-    TDynamicMatrix<int> m(3);
-    for (int i = 0; i < 3; i++)
-        for (int j = 0; j < 3; j++)
-            m[i][j] = i * 3 + j + 1;          // [1..9]
-    std::string expected = "1 2 3 \n4 5 6 \n7 8 9 \n";
-
-    std::stringstream sstr;
-    sstr << m;
-
-    EXPECT_EQ(expected, sstr.str());
+    EXPECT_EQ(5, r[0][0]);
+    EXPECT_EQ(6, r[0][1]);
+    EXPECT_EQ(7, r[1][0]);
+    EXPECT_EQ(8, r[1][1]);
 }
